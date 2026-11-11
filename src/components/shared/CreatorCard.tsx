@@ -1,3 +1,4 @@
+import { getImageUrl } from "@/lib/utils";
 import { Models } from "appwrite";
 import { Link } from "react-router-dom";
 
@@ -9,11 +10,18 @@ type UserCardProps = {
 
 const CreatorCard = ({ user }: UserCardProps) => {
   return (
-    <Link to={`/profile/${user.$id}`} className="user-card">
+    <Link
+      to={`/profile/${user.$id}`}
+      className="user-card"
+      aria-label={`View ${user.name}'s profile`}
+    >
       <img
-        src={user.imageUrl || "/assets/icons/profile-placeholder.svg"}
-        alt="creator"
+        src={getImageUrl(user.imageId)}
+        alt=""
         className="rounded-full w-14 h-14"
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true"
       />
 
       <div className="flex-center flex-col gap-1">
@@ -25,7 +33,13 @@ const CreatorCard = ({ user }: UserCardProps) => {
         </p>
       </div>
 
-      <Button type="button" size="sm" className="shad-button_primary px-5">
+      <Button
+        type="button"
+        size="sm"
+        className="shad-button_primary px-5"
+        onClick={(e) => e.preventDefault()}
+        aria-label={`Follow ${user.name}`}
+      >
         Follow
       </Button>
     </Link>

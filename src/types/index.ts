@@ -37,6 +37,7 @@ export type IUser = {
   username: string;
   email: string;
   imageUrl: string;
+  imageId: string;
   bio: string;
 };
 
@@ -45,4 +46,22 @@ export type INewUser = {
   email: string;
   username: string;
   password: string;
+};
+
+export type INewComment = {
+  content: string;
+  postId: string;
+  userId: string;
+};
+
+export type IComment = {
+  $id: string;
+  content: string;
+  post: string;
+  author: {
+    $id: string;
+    name: string;
+    imageUrl: string;
+  };
+  $createdAt: string;
 };

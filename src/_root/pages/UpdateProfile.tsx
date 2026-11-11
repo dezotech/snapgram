@@ -12,13 +12,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
-
-
 import { ProfileValidation } from "@/lib/validation";
 import { useUserContext } from "@/context/AuthContext";
 import { useGetUserById, useUpdateUser } from "@/lib/react-query/queriesAndMutations";
 import Loader from "@/components/shared/Loader";
 import ProfileUploader from "@/components/shared/ProfileUploader";
+import PageHeader from "@/components/shared/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -28,6 +27,7 @@ const UpdateProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user, setUser } = useUserContext();
+
   const form = useForm<z.infer<typeof ProfileValidation>>({
     resolver: zodResolver(ProfileValidation),
     defaultValues: {
@@ -39,19 +39,25 @@ const UpdateProfile = () => {
     },
   });
 
-  // Queries
-  const { data: currentUser } = useGetUserById(id || "");
-  const { mutateAsync: updateUser, isPending: isLoadingUpdate } =
-    useUpdateUser();
+  const { data: currentUser, isPending } = useGetUserById(id || "");
+  const { mutateAsync: updateUser, isPending: isLoadingUpdate } = useUpdateUser();
 
-  if (!currentUser)
+  if (isPending) {
     return (
       <div className="flex-center w-full h-full">
         <Loader />
       </div>
     );
+  }
 
-  // Handler
+  if (!currentUser) {
+    return (
+      <div className="flex-center w-full h-full">
+        <p className="text-light-4">User not found</p>
+      </div>
+    );
+  }
+
   const handleUpdate = async (value: z.infer<typeof ProfileValidation>) => {
     const updatedUser = await updateUser({
       userId: currentUser.$id,
@@ -64,37 +70,32 @@ const UpdateProfile = () => {
 
     if (!updatedUser) {
       toast({
-        title: `Update user failed. Please try again.`,
+        title: "Update failed. Please try again.",
       });
+      return;
     }
 
     setUser({
       ...user,
-      name: updatedUser?.name,
-      bio: updatedUser?.bio,
-      imageUrl: updatedUser?.imageUrl,
+      name: updatedUser.name,
+      bio: updatedUser.bio,
+      imageUrl: updatedUser.imageUrl,
     });
-    return navigate(`/profile/${id}`);
+
+    navigate(`/profile/${id}`);
   };
 
   return (
     <div className="flex flex-1">
       <div className="common-container">
-        <div className="flex-start gap-3 justify-start w-full max-w-5xl">
-          <img
-            src="/assets/icons/edit.svg"
-            width={36}
-            height={36}
-            alt="edit"
-            className="invert-white"
-          />
-          <h2 className="h3-bold md:h2-bold text-left w-full">Edit Profile</h2>
-        </div>
+        <PageHeader icon="/assets/icons/edit.svg" title="Edit Profile" />
 
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleUpdate)}
-            className="flex flex-col gap-7 w-full mt-4 max-w-5xl">
+            className="flex flex-col gap-7 w-full mt-4 max-w-5xl"
+            aria-label="Edit profile form"
+          >
             <FormField
               control={form.control}
               name="file"
@@ -118,7 +119,12 @@ const UpdateProfile = () => {
                 <FormItem>
                   <FormLabel className="shad-form_label">Name</FormLabel>
                   <FormControl>
-                    <Input type="text" className="shad-input" {...field} />
+                    <Input
+                      type="text"
+                      className="shad-input"
+                      autoComplete="name"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -135,10 +141,14 @@ const UpdateProfile = () => {
                     <Input
                       type="text"
                       className="shad-input"
-                      {...field}
                       disabled
+                      aria-describedby="username-hint"
+                      {...field}
                     />
                   </FormControl>
+                  <p id="username-hint" className="text-light-4 text-xs mt-1">
+                    Username cannot be changed
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -152,12 +162,16 @@ const UpdateProfile = () => {
                   <FormLabel className="shad-form_label">Email</FormLabel>
                   <FormControl>
                     <Input
-                      type="text"
+                      type="email"
                       className="shad-input"
-                      {...field}
                       disabled
+                      aria-describedby="email-hint"
+                      {...field}
                     />
                   </FormControl>
+                  <p id="email-hint" className="text-light-4 text-xs mt-1">
+                    Email cannot be changed
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -172,6 +186,7 @@ const UpdateProfile = () => {
                   <FormControl>
                     <Textarea
                       className="shad-textarea custom-scrollbar"
+                      placeholder="Tell us about yourself..."
                       {...field}
                     />
                   </FormControl>
@@ -184,15 +199,23 @@ const UpdateProfile = () => {
               <Button
                 type="button"
                 className="shad-button_dark_4"
-                onClick={() => navigate(-1)}>
+                onClick={() => navigate(-1)}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="shad-button_primary whitespace-nowrap"
-                disabled={isLoadingUpdate}>
-                {isLoadingUpdate && <Loader />}
-                Update Profile
+                disabled={isLoadingUpdate}
+                aria-busy={isLoadingUpdate}
+              >
+                {isLoadingUpdate ? (
+                  <>
+                    <Loader /> Updating...
+                  </>
+                ) : (
+                  "Update Profile"
+                )}
               </Button>
             </div>
           </form>

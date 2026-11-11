@@ -1,7 +1,12 @@
-import { ID, Query } from 'appwrite'
+import { ID, Permission, Query, Role } from 'appwrite'
 
-import { INewPost, INewUser, IUpdatePost, IUpdateUser } from '@/types'
+import { handleApiError, logError, validateRequired } from '@/lib/utils/errorHandler'
+import { INewComment, INewPost, INewUser, IUpdatePost, IUpdateUser } from '@/types'
 import { account, appwriteConfig, avatars, databases, storage } from './config'
+
+// ============================================================
+// AUTH
+// ============================================================
 
 export async function createUserAccount(user: INewUser) {
   try {
@@ -12,7 +17,9 @@ export async function createUserAccount(user: INewUser) {
       user.name
     )
 
-    if (!newAccount) throw Error
+    if (!newAccount) {
+      throw new Error('Failed to create account')
+    }
 
     const avatarUrl = avatars.getInitials(user.name)
 
@@ -26,8 +33,8 @@ export async function createUserAccount(user: INewUser) {
 
     return newUser
   } catch (error) {
-    console.log(error)
-    return error
+    logError('createUserAccount', error)
+    return null
   }
 }
 
@@ -48,27 +55,25 @@ export async function saveUserToDB(user: {
 
     return newUser
   } catch (error) {
-    console.log(error)
+    return handleApiError('saveUserToDB', error)
   }
 }
 
 export async function signInAccount(user: { email: string; password: string }) {
   try {
     const session = await account.createEmailSession(user.email, user.password)
-
     return session
   } catch (error) {
-    console.log(error)
+    return handleApiError('signInAccount', error)
   }
 }
 
 export async function getAccount() {
   try {
     const currentAccount = await account.get()
-
     return currentAccount
   } catch (error) {
-    console.log(error)
+    return handleApiError('getAccount', error)
   }
 }
 
@@ -76,7 +81,9 @@ export async function getCurrentUser() {
   try {
     const currentAccount = await getAccount()
 
-    if (!currentAccount) throw Error
+    if (!currentAccount) {
+      throw new Error('No account found')
+    }
 
     const currentUser = await databases.listDocuments(
       appwriteConfig.databaseId,
@@ -84,11 +91,13 @@ export async function getCurrentUser() {
       [Query.equal('accountId', currentAccount.$id)]
     )
 
-    if (!currentUser) throw Error
+    if (!currentUser || currentUser.documents.length === 0) {
+      throw new Error('User not found in database')
+    }
 
     return currentUser.documents[0]
   } catch (error) {
-    console.log(error)
+    logError('getCurrentUser', error)
     return null
   }
 }
@@ -96,24 +105,29 @@ export async function getCurrentUser() {
 export async function signOutAccount() {
   try {
     const session = await account.deleteSession('current')
-
     return session
   } catch (error) {
-    console.log(error)
+    return handleApiError('signOutAccount', error)
   }
 }
+
+// ============================================================
+// POSTS
+// ============================================================
 
 export async function createPost(post: INewPost) {
   try {
     // Upload file to appwrite storage
     const uploadedFile = await uploadFile(post.file[0])
 
-    if (!uploadedFile) throw Error
+    if (!uploadedFile) {
+      throw new Error('Failed to upload file')
+    }
 
     const fileUrl = getFilePreview(uploadedFile.$id)
     if (!fileUrl) {
       await deleteFile(uploadedFile.$id)
-      throw Error
+      throw new Error('Failed to get file preview')
     }
 
     const tags = post.tags?.replace(/ /g, '').split(',') || []
@@ -134,12 +148,12 @@ export async function createPost(post: INewPost) {
 
     if (!newPost) {
       await deleteFile(uploadedFile.$id)
-      throw Error
+      throw new Error('Failed to create post')
     }
 
     return newPost
   } catch (error) {
-    console.log(error)
+    return handleApiError('createPost', error)
   }
 }
 
@@ -148,41 +162,39 @@ export async function uploadFile(file: File) {
     const uploadedFile = await storage.createFile(
       appwriteConfig.storageId,
       ID.unique(),
-      file
+      file,
+      [Permission.read(Role.any())]
     )
 
     return uploadedFile
   } catch (error) {
-    console.log(error)
+    return handleApiError('uploadFile', error)
   }
 }
 
 export function getFilePreview(fileId: string) {
   try {
-    const fileUrl = storage.getFilePreview(
+    const fileUrl = storage.getFileView(
       appwriteConfig.storageId,
-      fileId,
-      2000,
-      2000,
-      'top',
-      100
+      fileId
     )
 
-    if (!fileUrl) throw Error
+    if (!fileUrl) {
+      throw new Error('Failed to generate file URL')
+    }
 
     return fileUrl
   } catch (error) {
-    console.log(error)
+    return handleApiError('getFilePreview', error)
   }
 }
 
 export async function deleteFile(fileId: string) {
   try {
     await storage.deleteFile(appwriteConfig.storageId, fileId)
-
     return { status: 'ok' }
   } catch (error) {
-    console.log(error)
+    return handleApiError('deleteFile', error)
   }
 }
 
@@ -194,19 +206,21 @@ export async function searchPosts(searchTerm: string) {
       [Query.search('caption', searchTerm)]
     )
 
-    if (!posts) throw Error
+    if (!posts) {
+      throw new Error('Failed to search posts')
+    }
 
     return posts
   } catch (error) {
-    console.log(error)
+    return handleApiError('searchPosts', error)
   }
 }
 
-export async function getInfinitePosts({ pageParam }: { pageParam: number }) {
-  const queries: any[] = [Query.orderDesc('$updatedAt'), Query.limit(9)]
+export async function getInfinitePosts({ pageParam }: { pageParam: string | null }) {
+  const queries = [Query.orderDesc('$updatedAt'), Query.limit(9)]
 
   if (pageParam) {
-    queries.push(Query.cursorAfter(pageParam.toString()))
+    queries.push(Query.cursorAfter(pageParam))
   }
 
   try {
@@ -216,16 +230,20 @@ export async function getInfinitePosts({ pageParam }: { pageParam: number }) {
       queries
     )
 
-    if (!posts) throw Error
+    if (!posts) {
+      throw new Error('Failed to fetch posts')
+    }
 
     return posts
   } catch (error) {
-    console.log(error)
+    return handleApiError('getInfinitePosts', error)
   }
 }
 
 export async function getPostById(postId?: string) {
-  if (!postId) throw Error
+  if (!postId) {
+    throw new Error('Post ID is required')
+  }
 
   try {
     const post = await databases.getDocument(
@@ -234,11 +252,13 @@ export async function getPostById(postId?: string) {
       postId
     )
 
-    if (!post) throw Error
+    if (!post) {
+      throw new Error('Post not found')
+    }
 
     return post
   } catch (error) {
-    console.log(error)
+    return handleApiError('getPostById', error)
   }
 }
 
@@ -253,12 +273,14 @@ export async function updatePost(post: IUpdatePost) {
 
     if (hasFileToUpdate) {
       const uploadedFile = await uploadFile(post.file[0])
-      if (!uploadedFile) throw Error
+      if (!uploadedFile) {
+        throw new Error('Failed to upload new file')
+      }
 
       const fileUrl = getFilePreview(uploadedFile.$id)
       if (!fileUrl) {
         await deleteFile(uploadedFile.$id)
-        throw Error
+        throw new Error('Failed to get file preview')
       }
 
       image = { ...image, imageUrl: fileUrl, imageId: uploadedFile.$id }
@@ -283,22 +305,25 @@ export async function updatePost(post: IUpdatePost) {
       if (hasFileToUpdate) {
         await deleteFile(image.imageId)
       }
-
-      throw Error
+      throw new Error('Failed to update post')
     }
 
+    // Delete old file after successful update
     if (hasFileToUpdate) {
       await deleteFile(post.imageId)
     }
 
     return updatedPost
   } catch (error) {
-    console.log(error)
+    return handleApiError('updatePost', error)
   }
 }
 
 export async function deletePost(postId?: string, imageId?: string) {
-  if (!postId || !imageId) return
+  if (!postId || !imageId) {
+    logError('deletePost', 'Post ID and Image ID are required')
+    return null
+  }
 
   try {
     const statusCode = await databases.deleteDocument(
@@ -307,13 +332,15 @@ export async function deletePost(postId?: string, imageId?: string) {
       postId
     )
 
-    if (!statusCode) throw Error
+    if (!statusCode) {
+      throw new Error('Failed to delete post')
+    }
 
     await deleteFile(imageId)
 
-    return { status: 'Ok' }
+    return { status: 'ok' }
   } catch (error) {
-    console.log(error)
+    return handleApiError('deletePost', error)
   }
 }
 
@@ -328,17 +355,19 @@ export async function likePost(postId: string, likesArray: string[]) {
       }
     )
 
-    if (!updatedPost) throw Error
+    if (!updatedPost) {
+      throw new Error('Failed to like post')
+    }
 
     return updatedPost
   } catch (error) {
-    console.log(error)
+    return handleApiError('likePost', error)
   }
 }
 
 export async function savePost(userId: string, postId: string) {
   try {
-    const updatedPost = await databases.createDocument(
+    const savedPost = await databases.createDocument(
       appwriteConfig.databaseId,
       appwriteConfig.savesCollectionId,
       ID.unique(),
@@ -348,13 +377,16 @@ export async function savePost(userId: string, postId: string) {
       }
     )
 
-    if (!updatedPost) throw Error
+    if (!savedPost) {
+      throw new Error('Failed to save post')
+    }
 
-    return updatedPost
+    return savedPost
   } catch (error) {
-    console.log(error)
+    return handleApiError('savePost', error)
   }
 }
+
 export async function deleteSavedPost(savedRecordId: string) {
   try {
     const statusCode = await databases.deleteDocument(
@@ -363,29 +395,36 @@ export async function deleteSavedPost(savedRecordId: string) {
       savedRecordId
     )
 
-    if (!statusCode) throw Error
+    if (!statusCode) {
+      throw new Error('Failed to delete saved post')
+    }
 
-    return { status: 'Ok' }
+    return { status: 'ok' }
   } catch (error) {
-    console.log(error)
+    return handleApiError('deleteSavedPost', error)
   }
 }
 
 export async function getUserPosts(userId?: string) {
-  if (!userId) return
+  if (!userId) {
+    logError('getUserPosts', 'User ID is required')
+    return null
+  }
 
   try {
-    const post = await databases.listDocuments(
+    const posts = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.postCollectionId,
       [Query.equal('creator', userId), Query.orderDesc('$createdAt')]
     )
 
-    if (!post) throw Error
+    if (!posts) {
+      throw new Error('Failed to fetch user posts')
+    }
 
-    return post
+    return posts
   } catch (error) {
-    console.log(error)
+    return handleApiError('getUserPosts', error)
   }
 }
 
@@ -397,16 +436,88 @@ export async function getRecentPosts() {
       [Query.orderDesc('$createdAt'), Query.limit(20)]
     )
 
-    if (!posts) throw Error
+    if (!posts) {
+      throw new Error('Failed to fetch recent posts')
+    }
 
     return posts
   } catch (error) {
-    console.log(error)
+    return handleApiError('getRecentPosts', error)
   }
 }
 
+// ============================================================
+// COMMENTS
+// ============================================================
+
+export async function createComment(comment: INewComment) {
+  if (!appwriteConfig.commentsCollectionId) return null;
+  try {
+    const newComment = await databases.createDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.commentsCollectionId,
+      ID.unique(),
+      {
+        content: comment.content,
+        post: comment.postId,
+        author: comment.userId,
+      }
+    )
+
+    if (!newComment) {
+      throw new Error('Failed to create comment')
+    }
+
+    return newComment
+  } catch (error) {
+    return handleApiError('createComment', error)
+  }
+}
+
+export async function getComments(postId: string) {
+  if (!appwriteConfig.commentsCollectionId) return { documents: [], total: 0 };
+  try {
+    const comments = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.commentsCollectionId,
+      [Query.equal('post', postId), Query.orderDesc('$createdAt')]
+    )
+
+    if (!comments) {
+      throw new Error('Failed to fetch comments')
+    }
+
+    return comments
+  } catch (error) {
+    return handleApiError('getComments', error)
+  }
+}
+
+export async function deleteComment(commentId: string) {
+  if (!appwriteConfig.commentsCollectionId) return { status: 'fail' };
+  try {
+    const statusCode = await databases.deleteDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.commentsCollectionId,
+      commentId
+    )
+
+    if (!statusCode) {
+      throw new Error('Failed to delete comment')
+    }
+
+    return { status: 'ok' }
+  } catch (error) {
+    return handleApiError('deleteComment', error)
+  }
+}
+
+// ============================================================
+// USERS
+// ============================================================
+
 export async function getUsers(limit?: number) {
-  const queries: any[] = [Query.orderDesc('$createdAt')]
+  const queries = [Query.orderDesc('$createdAt')]
 
   if (limit) {
     queries.push(Query.limit(limit))
@@ -419,32 +530,39 @@ export async function getUsers(limit?: number) {
       queries
     )
 
-    if (!users) throw Error
+    if (!users) {
+      throw new Error('Failed to fetch users')
+    }
 
     return users
   } catch (error) {
-    console.log(error)
+    return handleApiError('getUsers', error)
   }
 }
 
 export async function getUserById(userId: string) {
   try {
+    validateRequired({ userId }, 'getUserById')
+
     const user = await databases.getDocument(
       appwriteConfig.databaseId,
       appwriteConfig.userCollectionId,
       userId
     )
 
-    if (!user) throw Error
+    if (!user) {
+      throw new Error('User not found')
+    }
 
     return user
   } catch (error) {
-    console.log(error)
+    return handleApiError('getUserById', error)
   }
 }
 
 export async function updateUser(user: IUpdateUser) {
   const hasFileToUpdate = user.file.length > 0
+
   try {
     let image = {
       imageUrl: user.imageUrl,
@@ -453,12 +571,14 @@ export async function updateUser(user: IUpdateUser) {
 
     if (hasFileToUpdate) {
       const uploadedFile = await uploadFile(user.file[0])
-      if (!uploadedFile) throw Error
+      if (!uploadedFile) {
+        throw new Error('Failed to upload profile image')
+      }
 
       const fileUrl = getFilePreview(uploadedFile.$id)
       if (!fileUrl) {
         await deleteFile(uploadedFile.$id)
-        throw Error
+        throw new Error('Failed to get profile image preview')
       }
 
       image = { ...image, imageUrl: fileUrl, imageId: uploadedFile.$id }
@@ -480,15 +600,16 @@ export async function updateUser(user: IUpdateUser) {
       if (hasFileToUpdate) {
         await deleteFile(image.imageId)
       }
-      throw Error
+      throw new Error('Failed to update user profile')
     }
 
+    // Delete old profile image after successful update
     if (user.imageId && hasFileToUpdate) {
       await deleteFile(user.imageId)
     }
 
     return updatedUser
   } catch (error) {
-    console.log(error)
+    return handleApiError('updateUser', error)
   }
 }

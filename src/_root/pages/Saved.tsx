@@ -1,14 +1,15 @@
 import { Models } from "appwrite";
 
 import { useGetCurrentUser } from "@/lib/react-query/queriesAndMutations";
-import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
+import GridPostSkeleton from "@/components/shared/GridPostSkeleton";
+import EmptyState from "@/components/shared/EmptyState";
 
 const Saved = () => {
-  const { data: currentUser } = useGetCurrentUser();
+  const { data: currentUser, isPending } = useGetCurrentUser();
 
   const savePosts = currentUser?.save
-    .map((savePost: Models.Document) => ({
+    ?.map((savePost: Models.Document) => ({
       ...savePost.post,
       creator: {
         imageUrl: currentUser.imageUrl,
@@ -23,21 +24,24 @@ const Saved = () => {
           src="/assets/icons/save.svg"
           width={36}
           height={36}
-          alt="edit"
+          alt=""
           className="invert-white"
+          aria-hidden="true"
         />
         <h2 className="h3-bold md:h2-bold text-left w-full">Saved Posts</h2>
       </div>
 
-      {!currentUser ? (
-        <Loader />
+      {isPending ? (
+        <GridPostSkeleton />
+      ) : !savePosts || savePosts.length === 0 ? (
+        <EmptyState
+          title="No saved posts"
+          description="Save posts to see them here"
+          icon="/assets/icons/save.svg"
+        />
       ) : (
         <ul className="w-full flex justify-center max-w-5xl gap-9">
-          {savePosts.length === 0 ? (
-            <p className="text-light-4">No available posts</p>
-          ) : (
-            <GridPostList posts={savePosts} showStats={false} />
-          )}
+          <GridPostList posts={savePosts} showStats={false} />
         </ul>
       )}
     </div>

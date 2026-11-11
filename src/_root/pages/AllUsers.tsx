@@ -1,40 +1,62 @@
 import CreatorCard from "@/components/shared/CreatorCard";
-import Loader from "@/components/shared/Loader";
-import { useToast } from "@/components/ui/use-toast";
-
+import CreatorCardSkeleton from "@/components/shared/CreatorCardSkeleton";
+import EmptyState from "@/components/shared/EmptyState";
+import ErrorState from "@/components/shared/ErrorState";
+import PageHeader from "@/components/shared/PageHeader";
 import { useGetUsers } from "@/lib/react-query/queriesAndMutations";
 
 const AllUsers = () => {
-  const { toast } = useToast();
+  const { data: creators, isPending, isError, refetch } = useGetUsers();
 
-  // Fetching data of all users using the custom hook useGetUsers
-  const { data: creators, isLoading, isError: isErrorCreators } = useGetUsers();
+  const renderContent = () => {
+    if (isPending) {
+      return (
+        <ul className="user-grid">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <li key={`skeleton-${i}`} className="flex-1 min-w-[200px] w-full">
+              <CreatorCardSkeleton />
+            </li>
+          ))}
+        </ul>
+      );
+    }
 
-  // Display a toast notification if there is an error fetching users' data
-  if (isErrorCreators) {
-    toast({ title: "Something went wrong." });
-    return; // Return early if there's an error
-  }
+    if (isError) {
+      return (
+        <ErrorState
+          title="Failed to load users"
+          description="Something went wrong while fetching users."
+          onRetry={() => refetch()}
+        />
+      );
+    }
+
+    if (!creators?.documents || creators.documents.length === 0) {
+      return (
+        <EmptyState
+          title="No users found"
+          description="Be the first one here!"
+          icon="/assets/icons/people.svg"
+        />
+      );
+    }
+
+    return (
+      <ul className="user-grid">
+        {creators.documents.map((creator) => (
+          <li key={creator.$id} className="flex-1 min-w-[200px] w-full">
+            <CreatorCard user={creator} />
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   return (
     <div className="common-container">
       <div className="user-container">
-        {/* Heading for the page */}
-        <h2 className="h3-bold md:h2-bold text-left w-full">All Users</h2>
-        {/* Display a loader while fetching data */}
-        {isLoading && !creators ? (
-          <Loader />
-        ) : (
-          <ul className="user-grid">
-            {/* Mapping through the creators' data to display each user */}
-            {creators?.documents.map((creator) => (
-              <li key={creator?.$id} className="flex-1 min-w-[200px] w-full">
-                {/* Displaying the CreatorCard component for each user */}
-                <CreatorCard user={creator} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <PageHeader icon="/assets/icons/people.svg" title="All Users" />
+        {renderContent()}
       </div>
     </div>
   );

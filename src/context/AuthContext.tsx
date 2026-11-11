@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 import { IUser } from "@/types";
 import { getCurrentUser } from "@/lib/appwrite/api";
+import { logError } from "@/lib/utils/errorHandler";
 
 export const INITIAL_USER = {
   id: "",
@@ -10,6 +11,7 @@ export const INITIAL_USER = {
   username: "",
   email: "",
   imageUrl: "",
+  imageId: "",
   bio: "",
 };
 
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: currentAccount.username,
           email: currentAccount.email,
           imageUrl: currentAccount.imageUrl,
+          imageId: currentAccount.imageId || "",
           bio: currentAccount.bio,
         });
         setIsAuthenticated(true);
@@ -59,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return false;
     } catch (error) {
-      console.error(error);
+      logError('checkAuthUser', error);
       return false;
     } finally {
       setIsLoading(false);

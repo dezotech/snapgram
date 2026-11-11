@@ -1,5 +1,6 @@
 import { useUserContext } from '@/context/AuthContext'
 import { useSignOutAccount } from '@/lib/react-query/queriesAndMutations'
+import { getImageUrl } from '@/lib/utils'
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
@@ -11,15 +12,15 @@ const Topbar = () => {
 
   useEffect(() => {
     if (isSuccess) navigate(0)
-  }, [isSuccess])
+  }, [isSuccess, navigate])
 
   return (
-    <section className="topbar">
+    <header className="topbar">
       <div className="flex-between py-4 px-5">
-        <Link to="/" className="flex gap-3 items-center">
+        <Link to="/" className="flex gap-3 items-center" aria-label="Snapgram home">
           <img
             src="/assets/images/logo.svg"
-            alt="logo"
+            alt="Snapgram"
             width={130}
             height={325}
           />
@@ -29,20 +30,25 @@ const Topbar = () => {
             variant="ghost"
             className="shad-button_ghost"
             onClick={() => signOut()}
+            aria-label="Log out"
           >
-            <img src="/assets/icons/logout.svg" alt="logout" />
+            <img src="/assets/icons/logout.svg" alt="" aria-hidden="true" />
           </Button>
-          <Link to={`/profile/${user.id}`} className="flex gap-3 items-center">
+          <Link
+            to={`/profile/${user.id}`}
+            className="flex gap-3 items-center"
+            aria-label={`View ${user.name}'s profile`}
+          >
             <img
-              src={user.imageUrl || "/assets/icons/profile-placeholder.svg"}
-              alt="profile"
+              src={getImageUrl(user.imageId)}
+              alt=""
               className="h-14 w-14 rounded-full"
+              aria-hidden="true"
             />
-           
           </Link>
         </div>
       </div>
-    </section>
+    </header>
   )
 }
 

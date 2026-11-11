@@ -1,32 +1,41 @@
 import { useEffect, useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { Models } from "appwrite";
 
 import useDebounce from "@/hooks/useDebounce";
 import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
+import GridPostSkeleton from "@/components/shared/GridPostSkeleton";
+import EmptyState from "@/components/shared/EmptyState";
 import { useGetPosts, useSearchPosts } from "@/lib/react-query/queriesAndMutations";
 import { Input } from "@/components/ui/input";
 
-export type SearchResultProps = {
+type SearchResultProps = {
   isSearchFetching: boolean;
-  searchedPosts: any;
+  searchedPosts: Models.DocumentList<Models.Document> | null | undefined;
 };
 
 const SearchResults = ({ isSearchFetching, searchedPosts }: SearchResultProps) => {
   if (isSearchFetching) {
-    return <Loader />;
-  } else if (searchedPosts && searchedPosts.documents.length > 0) {
-    return <GridPostList posts={searchedPosts.documents} />;
-  } else {
-    return (
-      <p className="text-light-4 mt-10 text-center w-full">No results found</p>
-    );
+    return <GridPostSkeleton />;
   }
+
+  if (searchedPosts && searchedPosts.documents.length > 0) {
+    return <GridPostList posts={searchedPosts.documents} />;
+  }
+
+  return (
+    <EmptyState
+      title="No results found"
+      description="Try searching for something else"
+      icon="/assets/icons/search.svg"
+    />
+  );
 };
 
 const Explore = () => {
   const { ref, inView } = useInView();
-  const { data: posts, fetchNextPage, hasNextPage } = useGetPosts();
+  const { data: posts, fetchNextPage, hasNextPage, isPending } = useGetPosts();
 
   const [searchValue, setSearchValue] = useState("");
   const debouncedSearch = useDebounce(searchValue, 500);
@@ -36,18 +45,11 @@ const Explore = () => {
     if (inView && !searchValue) {
       fetchNextPage();
     }
-  }, [inView, searchValue]);
-
-  if (!posts)
-    return (
-      <div className="flex-center w-full h-full">
-        <Loader />
-      </div>
-    );
+  }, [inView, searchValue, fetchNextPage]);
 
   const shouldShowSearchResults = searchValue !== "";
-  const shouldShowPosts = !shouldShowSearchResults && 
-    posts.pages.every((item) => item?.documents.length === 0);
+  const shouldShowPosts = !shouldShowSearchResults &&
+    posts?.pages.every((item) => item?.documents.length === 0);
 
   return (
     <div className="explore-container">
@@ -58,17 +60,16 @@ const Explore = () => {
             src="/assets/icons/search.svg"
             width={24}
             height={24}
-            alt="search"
+            alt=""
+            aria-hidden="true"
           />
           <Input
             type="text"
-            placeholder="Search"
+            placeholder="Search posts..."
             className="explore-search"
             value={searchValue}
-            onChange={(e) => {
-              const { value } = e.target;
-              setSearchValue(value);
-            }}
+            onChange={(e) => setSearchValue(e.target.value)}
+            aria-label="Search posts"
           />
         </div>
       </div>
@@ -82,21 +83,27 @@ const Explore = () => {
             src="/assets/icons/filter.svg"
             width={20}
             height={20}
-            alt="filter"
+            alt=""
+            aria-hidden="true"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap gap-9 w-full max-w-5xl">
-        {shouldShowSearchResults ? (
+        {isPending && !posts ? (
+          <GridPostSkeleton />
+        ) : shouldShowSearchResults ? (
           <SearchResults
             isSearchFetching={isSearchFetching}
             searchedPosts={searchedPosts}
           />
         ) : shouldShowPosts ? (
-          <p className="text-light-4 mt-10 text-center w-full">End of posts</p>
+          <EmptyState
+            title="No posts yet"
+            description="Be the first to share something!"
+          />
         ) : (
-          posts.pages.map((item, index) => (
+          posts?.pages.map((item, index) => (
             <GridPostList key={`page-${index}`} posts={item?.documents} />
           ))
         )}

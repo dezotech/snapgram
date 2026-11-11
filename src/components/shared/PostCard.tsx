@@ -1,5 +1,5 @@
 import { useUserContext } from '@/context/AuthContext'
-import { multiFormatDateString } from '@/lib/utils'
+import { getImageUrl, multiFormatDateString } from '@/lib/utils'
 import { Models } from 'appwrite'
 import { Link } from 'react-router-dom'
 import PostStats from './PostStats'
@@ -11,19 +11,19 @@ type PostCardProps = {
 const PostCard = ({ post }: PostCardProps) => {
   const { user } = useUserContext()
 
-  if (!post.creator) return
+  if (!post.creator) return null
+
   return (
     <div className="post-card">
       <div className="flex-between">
         <div className="flex items-center gap-3">
           <Link to={`/profile/${post.creator.$id}`}>
             <img
-              src={
-                post?.creator?.imageUrl ||
-                '/assets/icons/profile-placeholder.svg'
-              }
-              alt="creator"
+              src={getImageUrl(post?.creator?.imageId)}
+              alt={`${post.creator.name}'s profile`}
               className="rounded-full w-12 lg:h-12"
+              loading="lazy"
+              decoding="async"
             />
           </Link>
           <div className="flex flex-col">
@@ -34,10 +34,14 @@ const PostCard = ({ post }: PostCardProps) => {
               <p className="subtle-semibold lg:small-regular">
                 {multiFormatDateString(post.$createdAt)}
               </p>
-              -
-              <p className="subtle-semibold lg:small-regular">
-                {post.location}
-              </p>
+              {post.location && (
+                <>
+                  <span aria-hidden="true">-</span>
+                  <p className="subtle-semibold lg:small-regular">
+                    {post.location}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -45,12 +49,14 @@ const PostCard = ({ post }: PostCardProps) => {
         <Link
           to={`/update-post/${post.$id}`}
           className={`${user.id !== post.creator.$id && 'hidden'}`}
+          aria-label="Edit post"
         >
           <img
             src={'/assets/icons/edit.svg'}
-            alt="edit"
+            alt=""
             width={20}
             height={20}
+            aria-hidden="true"
           />
         </Link>
       </div>
@@ -66,9 +72,11 @@ const PostCard = ({ post }: PostCardProps) => {
           </ul>
         </div>
         <img
-          src={post.imageUrl || '/assets/icons/profile-placeholder.svg'}
-          alt="post image"
+          src={getImageUrl(post.imageId)}
+          alt={post.caption || 'Post image'}
           className="post-card_img"
+          loading="lazy"
+          decoding="async"
         />
       </Link>
       <PostStats post={post} userId={user.id} />

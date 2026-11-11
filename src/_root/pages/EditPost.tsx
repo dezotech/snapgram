@@ -11,6 +11,14 @@ const EditPost = () => {
     return <Loader />
   }
 
+  if (!post) {
+    return (
+      <div className='flex flex-1 items-center justify-center'>
+        <p className='text-light-4'>Post not found</p>
+      </div>
+    )
+  }
+
   return (
     <div className='flex flex-1'>
       <div className='common-container'>
@@ -21,7 +29,7 @@ const EditPost = () => {
         <PostForm action="Update" post={post} />
 
       </div>
-     
+
     </div>
   )
 }

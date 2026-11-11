@@ -61,16 +61,17 @@ const SigninForm = () => {
   return (
     <Form {...form}>
       <div className="sm:w-420 flex-center flex-col">
-        <img src="/assets/images/logo.svg" alt="logo" />
-        <h2 className="h3-bold md:h2-bold pt-5 sm:pt-12">
+        <img src="/assets/images/logo.svg" alt="Snapgram" />
+        <h1 className="h3-bold md:h2-bold pt-5 sm:pt-12">
           Log in to your account
-        </h2>
+        </h1>
         <p className="text-light-3 small-medium md:base-regular mt-12">
           Welcome back! Please enter your email and password to continue.
         </p>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-5 w-full mt-4"
+          aria-label="Sign in form"
         >
           <FormField
             control={form.control}
@@ -79,9 +80,13 @@ const SigninForm = () => {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" className="shad-input" {...field} />
+                  <Input
+                    type="email"
+                    className="shad-input"
+                    autoComplete="email"
+                    {...field}
+                  />
                 </FormControl>
-
                 <FormMessage />
               </FormItem>
             )}
@@ -93,17 +98,26 @@ const SigninForm = () => {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" className="shad-input" {...field} />
+                  <Input
+                    type="password"
+                    className="shad-input"
+                    autoComplete="current-password"
+                    {...field}
+                  />
                 </FormControl>
-
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" className="shad-button_primary">
+          <Button
+            type="submit"
+            className="shad-button_primary"
+            disabled={isUserLoading}
+            aria-busy={isUserLoading}
+          >
             {isUserLoading ? (
               <div className="flex-center gap-2">
-                <Loader /> Loading...
+                <Loader /> Signing in...
               </div>
             ) : (
               'Sign In'

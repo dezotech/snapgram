@@ -68,16 +68,17 @@ const SignupForm = () => {
   return (
     <Form {...form}>
       <div className="sm:w-420 flex-center flex-col">
-        <img src="/assets/images/logo.svg" alt="logo" />
-        <h2 className="h3-bold md:h2-bold pt-5 sm:pt-12">
+        <img src="/assets/images/logo.svg" alt="Snapgram" />
+        <h1 className="h3-bold md:h2-bold pt-5 sm:pt-12">
           Create a new account
-        </h2>
+        </h1>
         <p className="text-light-3 small-medium md:base-regular mt-12">
           To use Snapgram enter your details
         </p>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-5 w-full mt-4"
+          aria-label="Sign up form"
         >
           <FormField
             control={form.control}
@@ -86,9 +87,13 @@ const SignupForm = () => {
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input type="text" className="shad-input" {...field} />
+                  <Input
+                    type="text"
+                    className="shad-input"
+                    autoComplete="name"
+                    {...field}
+                  />
                 </FormControl>
-
                 <FormMessage />
               </FormItem>
             )}
@@ -100,9 +105,13 @@ const SignupForm = () => {
               <FormItem>
                 <FormLabel>Username</FormLabel>
                 <FormControl>
-                  <Input type="text" className="shad-input" {...field} />
+                  <Input
+                    type="text"
+                    className="shad-input"
+                    autoComplete="username"
+                    {...field}
+                  />
                 </FormControl>
-
                 <FormMessage />
               </FormItem>
             )}
@@ -114,9 +123,13 @@ const SignupForm = () => {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" className="shad-input" {...field} />
+                  <Input
+                    type="email"
+                    className="shad-input"
+                    autoComplete="email"
+                    {...field}
+                  />
                 </FormControl>
-
                 <FormMessage />
               </FormItem>
             )}
@@ -128,17 +141,26 @@ const SignupForm = () => {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" className="shad-input" {...field} />
+                  <Input
+                    type="password"
+                    className="shad-input"
+                    autoComplete="new-password"
+                    {...field}
+                  />
                 </FormControl>
-
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" className="shad-button_primary">
+          <Button
+            type="submit"
+            className="shad-button_primary"
+            disabled={isCreatingAccount || isSigningIn || isUserLoading}
+            aria-busy={isCreatingAccount || isSigningIn || isUserLoading}
+          >
             {isCreatingAccount || isSigningIn || isUserLoading ? (
               <div className="flex-center gap-2">
-                <Loader /> Loading...
+                <Loader /> Creating account...
               </div>
             ) : (
               "Sign Up"

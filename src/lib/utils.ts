@@ -56,3 +56,11 @@ export const multiFormatDateString = (timestamp: string = ""): string => {
 export const checkIsLiked = (likeList: string[], userId: string) => {
   return likeList.includes(userId);
 };
+
+// Generate Appwrite storage URL from imageId (uses /view endpoint which works with public permissions)
+export function getImageUrl(imageId: string | undefined | null): string {
+  if (!imageId) return '/assets/icons/profile-placeholder.svg';
+  const storageId = import.meta.env.VITE_APPWRITE_STORAGE_ID;
+  const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID;
+  return `https://cloud.appwrite.io/v1/storage/buckets/${storageId}/files/${imageId}/view?project=${projectId}`;
+}
